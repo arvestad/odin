@@ -25,7 +25,18 @@ Then open `http://localhost:6271` in a browser, or run `odin watch` in a second 
 
 ## Shell examples
 
-| File             | Description |
-|------------------|---|
-| `shell_demo.sh`  | A multi-step shell pipeline reporting progress with `odin progress` and `odin info` |
-| `startserver.sh` | Convenience script to start the Odin server |
+| File                  | Description |
+|-----------------------|---|
+| `shell_demo.sh`       | A multi-step shell pipeline reporting progress with `odin progress` and `odin info` |
+| `shell_reporting.sh`  | Comprehensive shell examples: progress, messages, open-ended counting, wrapping external commands |
+| `startserver.sh`      | Convenience script to start the Odin server |
+
+## C++ examples
+
+Build all with `make` in `examples/cpp/`. Requires a C++17 compiler and pthreads.
+
+| File                  | Description |
+|-----------------------|---|
+| `simple_loop.cpp`     | Wrap a vector with `odin::track()` — minimal usage |
+| `reporter_demo.cpp`   | Direct `Reporter` usage with info and warning messages |
+| `error_handling.cpp`  | Exception thrown inside `track()` — automatically reported as an error |

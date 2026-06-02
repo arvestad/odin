@@ -20,7 +20,7 @@ for item in track(my_list, label="processing"):
 - **Minimal API** — wrapping an existing loop takes one line
 - **Live browser dashboard** — auto-updating, no page refreshes
 - **Terminal viewer** — `odin watch` for a rich live table in your terminal
-- **Multi-language** — Python reporter library; shell one-liners via the `odin` CLI
+- **Multi-language** — Python and C++ reporter libraries; shell one-liners via the `odin` CLI
 - **Graceful fallback** — if no server is running, output goes to stderr (or your logger); your code keeps working
 - **Process death detection** — reporters that crash or are killed are automatically marked as died
 - **ETA estimation** — time-remaining shown once enough data has accumulated
@@ -90,17 +90,60 @@ odin stop
 
 ---
 
+## C++ usage
+
+Copy `cpp/odin.hpp` from the repository into your project — no build system changes needed beyond adding the include path.
+
+```cpp
+#include "odin.hpp"
+#include <vector>
+
+int main() {
+    // Wrap a container — progress reported automatically
+    std::vector<double> data = load_data();
+    for (auto& item : odin::track(data, "processing")) {
+        process(item);
+    }
+
+    // Or use Reporter directly
+    odin::Reporter r("simulation", 1000);
+    for (int i = 0; i < 1000; ++i) {
+        run_step(i);
+        r.progress(i + 1);
+        if (something_odd) r.warning("Step took too long");
+    }
+    r.done(); // optional — destructor calls it automatically
+}
+```
+
+Compile with C++17 and pthreads:
+
+```bash
+g++ -std=c++17 -pthread -I/path/to/odin/cpp myprogram.cpp -o myprogram
+```
+
+Exceptions thrown inside `odin::track()` are automatically reported as errors before propagating.
+
+---
+
 ## Shell usage
 
 Report progress from shell scripts using the `odin` CLI:
 
 ```bash
-odin progress "pipeline" 1 5
-odin info     "pipeline" "Phase 1 complete"
-odin warning  "pipeline" "Disk usage above 80%"
-odin error    "pipeline" "Input file missing"
-odin progress "pipeline" 5 5
+odin progress "pipeline" 0 5
+
+for step in 1 2 3 4 5; do
+    do_work "$step"
+    odin progress "pipeline" "$step" 5
+done
+
+odin info    "pipeline" "All steps complete"
+odin warning "pipeline" "Disk usage above 80%"
+odin error   "pipeline" "Input file missing"
 ```
+
+Each `odin` call connects, sends one message, and exits. If no server is running the commands are silent no-ops.
 
 ---
 
@@ -149,6 +192,28 @@ odin serve [--retention SECONDS]
 Reporters connect to a Unix socket (`~/.odin`) on startup and hold the connection open. The server keeps only the latest state for each reporter and pushes updates to connected viewers over WebSocket. When a reporter's connection drops without a `done` message, the server marks it as died.
 
 Because the server is single-threaded asyncio and each reporter has its own connection, there are no race conditions — multiple reporters writing simultaneously is safe by design.
+
+The wire protocol is documented in [PROTOCOL.md](PROTOCOL.md). It is simple enough to implement a reporter in any language in an afternoon.
+
+---
+
+## Publishing / distribution
+
+**Python** — install from PyPI:
+```bash
+pip install odin
+```
+
+**C++** — the library is a single header file. Copy it directly:
+```bash
+wget https://raw.githubusercontent.com/arvestad/odin/main/cpp/odin.hpp
+```
+
+Or add the repo as a git submodule:
+```bash
+git submodule add https://github.com/arvestad/odin deps/odin
+# then add -Ideps/odin/cpp to your compiler flags
+```
 
 ---
 
