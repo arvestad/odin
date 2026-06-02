@@ -22,6 +22,7 @@ done
 odin info    "$LABEL" "All steps complete"
 odin warning "$LABEL" "Disk usage above 80%"
 odin error   "$LABEL" "Config file missing — using defaults"
+odin done    "$LABEL"
 
 # --- Open-ended counting (no total) ---
 

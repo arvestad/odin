@@ -84,6 +84,18 @@ All string values must be valid UTF-8. JSON string escaping follows the JSON spe
 {"type":"error","message":"File not found: input.csv"}
 ```
 
+### `suspend` — disconnect without finishing
+
+Used by shell one-liners that send a single update and then disconnect. Tells the server not to mark the session as died. The session remains `running` and preserves its current state. The next connection with the same session key will resume it.
+
+| Field  | Type   | Required | Description |
+|--------|--------|----------|-------------|
+| `type` | string | yes      | `"suspend"` |
+
+```json
+{"type":"suspend"}
+```
+
 ### `done` — clean completion
 
 | Field  | Type   | Required | Description |

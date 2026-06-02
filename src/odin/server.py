@@ -33,6 +33,7 @@ class Session:
         self.updated = time.time()
         self.completed_at: float | None = None
         self.eta_seconds: float | None = None
+        self.suspended: bool = False
         self._progress_buffer: deque[tuple[float, int]] = deque(maxlen=BUFFER_SIZE)
 
     def update_eta(self) -> None:
@@ -101,12 +102,21 @@ class OdinServer:
                 mtype = msg.get("type")
 
                 if mtype == "hello":
-                    session = Session(
+                    new = Session(
                         host=msg.get("host", socket.gethostname()),
                         pid=msg.get("pid", 0),
                         label=msg.get("label", "unknown"),
                         total=msg.get("total"),
                     )
+                    # Reconnecting shell reporters: preserve progress state
+                    existing = self.sessions.get(new.id)
+                    if existing is not None and existing.suspended:
+                        new.value = existing.value
+                        new.last_message = existing.last_message
+                        new.last_message_type = existing.last_message_type
+                        new.message_at = existing.message_at
+                        new.eta_seconds = existing.eta_seconds
+                    session = new
                     self.sessions[session.id] = session
                     await self.broadcast()
 
@@ -131,6 +141,9 @@ class OdinServer:
                         session.last_message_type = "error"
                         session.message_at = time.time()
                         session.status = "error"
+                    elif mtype == "suspend":
+                        session.suspended = True
+                        break  # connection will close; don't mark as died
                     elif mtype == "done":
                         session.status = "failed" if session.status == "error" else "done"
                         session.completed_at = time.time()
@@ -143,7 +156,7 @@ class OdinServer:
             pass
         finally:
             writer.close()
-            if session is not None and session.status == "running":
+            if session is not None and session.status == "running" and not session.suspended:
                 session.status = "died"
                 session.completed_at = time.time()
                 session.updated = time.time()

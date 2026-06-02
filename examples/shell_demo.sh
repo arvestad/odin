@@ -1,6 +1,9 @@
 #!/bin/bash
 # Shell script showing Odin's one-shot CLI commands.
 # Each command connects, sends its message, and exits immediately.
+# All calls from this script share one panel because they use the
+# parent shell's PID as the session key.
+# Call "odin done" at the end to mark the session as complete.
 
 LABEL="shell pipeline"
 
@@ -27,4 +30,5 @@ echo "Step 5: cleaning up..."
 sleep 1
 odin progress "$LABEL" 5 5
 
+odin done "$LABEL"
 echo "Done!"

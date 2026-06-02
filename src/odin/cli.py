@@ -73,36 +73,49 @@ def cmd_watch(_args) -> None:
     asyncio.run(watch())
 
 
+def _shell_hello(label: str, total: int | None = None) -> dict:
+    # Use the parent shell's PID so all odin calls from the same script
+    # share one session panel.
+    return {"type": "hello", "label": label, "pid": os.getppid(),
+            "host": socket.gethostname(), "total": total}
+
+
 def cmd_progress(args) -> None:
     total = int(args.total) if args.total else None
     _send_oneshot([
-        {"type": "hello", "label": args.label, "pid": os.getpid(),
-         "host": socket.gethostname(), "total": total},
+        _shell_hello(args.label, total),
         {"type": "progress", "value": int(args.value)},
-        {"type": "done"},
+        {"type": "suspend"},
     ])
 
 
 def cmd_info(args) -> None:
     _send_oneshot([
-        {"type": "hello", "label": args.label, "pid": os.getpid(), "host": socket.gethostname()},
+        _shell_hello(args.label),
         {"type": "info", "message": args.message},
-        {"type": "done"},
+        {"type": "suspend"},
     ])
 
 
 def cmd_warning(args) -> None:
     _send_oneshot([
-        {"type": "hello", "label": args.label, "pid": os.getpid(), "host": socket.gethostname()},
+        _shell_hello(args.label),
         {"type": "warning", "message": args.message},
-        {"type": "done"},
+        {"type": "suspend"},
     ])
 
 
 def cmd_error(args) -> None:
     _send_oneshot([
-        {"type": "hello", "label": args.label, "pid": os.getpid(), "host": socket.gethostname()},
+        _shell_hello(args.label),
         {"type": "error", "message": args.message},
+        {"type": "suspend"},
+    ])
+
+
+def cmd_done(args) -> None:
+    _send_oneshot([
+        _shell_hello(args.label),
         {"type": "done"},
     ])
 
@@ -135,6 +148,9 @@ def main() -> None:
     p.add_argument("label")
     p.add_argument("message")
 
+    p = sub.add_parser("done", help="Mark a shell session as finished (shell use)")
+    p.add_argument("label")
+
     args = parser.parse_args()
     dispatch = {
         "serve": cmd_serve,
@@ -144,5 +160,6 @@ def main() -> None:
         "info": cmd_info,
         "warning": cmd_warning,
         "error": cmd_error,
+        "done": cmd_done,
     }
     dispatch[args.command](args)
