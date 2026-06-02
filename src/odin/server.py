@@ -28,6 +28,7 @@ class Session:
         self.value: int | None = None
         self.status = "running"
         self.last_message: str | None = None
+        self.last_message_type: str | None = None
         self.message_at: float | None = None
         self.updated = time.time()
         self.completed_at: float | None = None
@@ -60,6 +61,7 @@ class Session:
             "value": self.value,
             "status": self.status,
             "last_message": self.last_message,
+            "last_message_type": self.last_message_type,
             "updated": self.updated,
             "message_at": self.message_at,
             "eta_seconds": self.eta_seconds,
@@ -117,17 +119,20 @@ class OdinServer:
                         session.update_eta()
                     elif mtype == "info":
                         session.last_message = msg.get("message")
+                        session.last_message_type = "info"
                         session.message_at = time.time()
                     elif mtype == "warning":
                         session.last_message = msg.get("message")
+                        session.last_message_type = "warning"
                         session.message_at = time.time()
                         session.status = "warning"
                     elif mtype == "error":
                         session.last_message = msg.get("message")
+                        session.last_message_type = "error"
                         session.message_at = time.time()
                         session.status = "error"
                     elif mtype == "done":
-                        session.status = "done"
+                        session.status = "failed" if session.status == "error" else "done"
                         session.completed_at = time.time()
                         await self.broadcast()
                         break
@@ -191,7 +196,6 @@ class OdinServer:
             self.handle_reporter, path=str(SOCKET_PATH)
         )
         os.chmod(SOCKET_PATH, 0o600)
-        PID_PATH.write_text(str(os.getpid()))
 
         app = web.Application()
         app.router.add_get("/", self.handle_index)
@@ -203,9 +207,13 @@ class OdinServer:
         site = web.TCPSite(runner, "localhost", HTTP_PORT)
         await site.start()
 
+        # Write pid only after all bindings succeed
+        PID_PATH.write_text(str(os.getpid()))
+
+        shutdown = asyncio.Event()
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
-            loop.add_signal_handler(sig, self._cleanup)
+            loop.add_signal_handler(sig, shutdown.set)
 
         retention_msg = f"{self.retention}s" if self.retention else "forever"
         print(f"Odin server listening on {SOCKET_PATH}")
@@ -215,9 +223,10 @@ class OdinServer:
         asyncio.create_task(self.cleanup_loop())
         try:
             async with unix_server:
-                await unix_server.serve_forever()
+                await shutdown.wait()
         finally:
             self._cleanup()
+            await runner.cleanup()  # releases port 6271
 
 
 async def run(retention: float = 30.0):

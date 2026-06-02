@@ -2,6 +2,8 @@
 
 **Lightweight progress reporting for long-running computations.**
 
+_Experimental release!_
+
 Odin lets you monitor running programs — progress bars, warnings, errors — from a browser or terminal, with almost no extra code. Start a server, add two lines to your script, and watch it from anywhere.
 
 ```python

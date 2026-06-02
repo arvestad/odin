@@ -20,6 +20,7 @@ Then open `http://localhost:6271` in a browser, or run `odin watch` in a second 
 | `open_ended.py` | Task with no known total — the bar shows a raw count instead of a percentage                                             |
 | `messages.py`           | `info()` and `warning()` calls interspersed with progress updates                                                |
 | `context_manager.py`    | `with Reporter(...) as r:` — randomly crashes mid-run so you can observe the error/died transition in the viewer |
+| `demo3.py`              | Progress with random steps including negative values — demonstrates the negative-value clamping and warning       |
 | `no_server.py`          | Run without starting `odin serve` first — output falls back to stderr and the script works regardless            |
 
 ## Shell examples

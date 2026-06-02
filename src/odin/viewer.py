@@ -26,6 +26,7 @@ def _status_style(status: str) -> str:
     return {
         "running": "green",
         "done": "dim",
+        "failed": "bold red",
         "died": "bold red",
         "warning": "yellow",
         "error": "red",
@@ -53,23 +54,25 @@ def _render(sessions: list[dict]) -> Table:
             bar = "█" * filled + "░" * (bar_width - filled)
             progress = f"{bar} {value}/{total}"
         elif value is not None:
-            progress = str(value)
+            progress = f"{value} items"
         else:
             progress = ""
 
-        if status == "done":
-            eta = "[green]Done[/green]"
-        elif s.get("eta_seconds") is not None:
-            eta = f"~{_fmt_eta(s['eta_seconds'])}"
-        else:
-            eta = ""
+        eta = f"~{_fmt_eta(s['eta_seconds'])}" if s.get("eta_seconds") is not None else ""
 
         style = _status_style(status)
 
-        message = s.get("last_message") or ""
-        if message and s.get("message_at"):
-            ts = datetime.fromtimestamp(s["message_at"]).strftime("%H:%M:%S")
-            message = f"{message} [dim]({ts})[/dim]"
+        last = s.get("last_message") or ""
+        mtype = s.get("last_message_type")
+        msg_colour = {"warning": "yellow", "error": "red"}.get(mtype or "", "")
+        if last:
+            text = f"[{msg_colour}]{last}[/{msg_colour}]" if msg_colour else last
+            if not total:
+                text = f"[bold]{text}[/bold]"
+            ts = datetime.fromtimestamp(s["message_at"]).strftime("%H:%M:%S") if s.get("message_at") else ""
+            message = f"{text} [dim]({ts})[/dim]" if ts else text
+        else:
+            message = ""
 
         table.add_row(
             s.get("host", ""),

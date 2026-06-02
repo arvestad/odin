@@ -113,6 +113,9 @@ class Reporter:
         self._queue.put(json.dumps(msg))
 
     def progress(self, value: int) -> None:
+        if value < 0:
+            self.warning(f"progress() called with negative value ({value}), clamping to 0")
+            value = 0
         self._enqueue({"type": "progress", "value": value})
 
     def info(self, message: str) -> None:

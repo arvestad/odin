@@ -27,6 +27,20 @@ def _send_oneshot(messages: list[dict]) -> None:
 
 
 def cmd_serve(args) -> None:
+    if PID_PATH.exists():
+        pid = int(PID_PATH.read_text().strip())
+        try:
+            os.kill(pid, 0)  # check if process is alive
+            print(
+                f"An Odin server is already running (pid {pid}).\n"
+                f"  To stop it:   odin stop\n"
+                f"  To view it:   odin watch  or  http://localhost:6271",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        except ProcessLookupError:
+            pass  # stale pid file — let the server clean it up and start normally
+
     from odin.server import run
     asyncio.run(run(retention=args.retention))
 
@@ -38,6 +52,14 @@ def cmd_stop(_args) -> None:
     pid = int(PID_PATH.read_text().strip())
     try:
         os.kill(pid, signal.SIGTERM)
+        # Wait for the process to exit so the port is free before returning
+        for _ in range(20):
+            import time
+            time.sleep(0.1)
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                break
         print(f"Odin server (pid {pid}) stopped.")
     except ProcessLookupError:
         print(f"No process with pid {pid} — cleaning up stale files.", file=sys.stderr)

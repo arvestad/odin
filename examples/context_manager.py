@@ -7,8 +7,9 @@ from odin import Reporter
 # Watch the viewer: a clean finish shows "done", a crash shows "error" then "died".
 
 with Reporter('risky job', total=60) as r:
+    r.info('An error will probably occur after 40+ iterations, randomly decided.')
     for i in range(60):
         time.sleep(0.05)
         r.progress(i + 1)
-        if i == 40 and random.random() < 0.5:
+        if i > 40 and random.random() < 0.02:
             raise RuntimeError("Something went wrong at step 40")

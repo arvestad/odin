@@ -9,17 +9,18 @@
   body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; padding: 1.5rem; }
   h1 { font-size: 1.25rem; font-weight: 600; color: #94a3b8; margin-bottom: 1.25rem; letter-spacing: 0.05em; }
   #status { font-size: 0.75rem; color: #475569; margin-bottom: 1rem; }
-  #sessions { display: flex; flex-direction: column; gap: 0.75rem; }
+  #sessions { display: flex; flex-direction: column; gap: 0.375rem; }
   .session {
     background: #1e2330; border: 1px solid #2d3748; border-radius: 0.5rem;
-    padding: 1rem 1.25rem;
+    padding: 0.5rem 1.25rem;
   }
-  .session.died  { border-left: 3px solid #ef4444; }
-  .session.error { border-left: 3px solid #f97316; }
+  .session.died   { border-left: 3px solid #ef4444; }
+  .session.failed { border-left: 3px solid #ef4444; }
+  .session.error  { border-left: 3px solid #f97316; }
   .session.warning { border-left: 3px solid #eab308; }
-  .session.done  { opacity: 0.5; border-left: 3px solid #4ade80; }
+  .session.done   { opacity: 0.5; border-left: 3px solid #4ade80; }
   .session.running { border-left: 3px solid #3b82f6; }
-  .header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; }
+  .header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.25rem; }
   .label { font-weight: 600; font-size: 1rem; }
   .meta { font-size: 0.75rem; color: #64748b; }
   .badge {
@@ -29,15 +30,20 @@
   .badge.running { background: #1d4ed8; color: #bfdbfe; }
   .badge.done    { background: #166534; color: #bbf7d0; }
   .badge.died    { background: #7f1d1d; color: #fecaca; }
+  .badge.failed  { background: #7f1d1d; color: #fecaca; }
   .badge.warning { background: #713f12; color: #fef08a; }
   .badge.error   { background: #7c2d12; color: #fed7aa; }
-  .bar-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.4rem; }
+  .bar-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.1rem; }
   .bar-track { flex: 1; background: #2d3748; border-radius: 999px; height: 6px; overflow: hidden; }
   .bar-fill { height: 100%; border-radius: 999px; background: #3b82f6; transition: width 0.3s; }
   .bar-fill.done { background: #4ade80; }
   .bar-label { font-size: 0.75rem; color: #94a3b8; white-space: nowrap; }
   .eta { font-size: 0.75rem; color: #64748b; white-space: nowrap; margin-left: auto; }
-  .message { font-size: 0.8rem; color: #94a3b8; margin-top: 0.4rem; font-style: italic; }
+  .message { font-size: 0.8rem; color: #94a3b8; margin-top: 0.1rem; font-style: italic; }
+  .message.prominent { font-style: normal; color: #e2e8f0; font-size: 0.95rem; font-weight: 500; }
+  .message.type-warning { color: #eab308; font-style: normal; }
+  .message.type-error   { color: #f97316; font-style: normal; }
+  .count { font-size: 0.8rem; color: #94a3b8; margin-top: 0.1rem; }
   .msg-ts { font-style: normal; color: #475569; font-size: 0.7rem; }
   .empty { color: #475569; text-align: center; padding: 3rem; }
 </style>
@@ -53,11 +59,22 @@ const sessionsEl = document.getElementById('sessions');
 
 function fmt(s) {
   const status = s.status || 'running';
-  const pct = (s.total && s.value != null) ? (s.value / s.total) : null;
-  const pctText = pct != null ? `${Math.round(pct * 100)}%` : (s.value != null ? s.value : '');
+  const hasTotal = s.total != null;
+  const pct = (hasTotal && s.value != null) ? (s.value / s.total) : null;
   const updated = s.updated ? new Date(s.updated * 1000).toLocaleTimeString() : '';
-  const barWidth = pct != null ? `${Math.round(pct * 100)}%` : '0%';
-  const showBar = s.total != null || s.value != null;
+  const msgTs = s.message_at ? ` <span class="msg-ts">${new Date(s.message_at*1000).toLocaleTimeString()}</span>` : '';
+
+  const barHtml = hasTotal ? `
+    <div class="bar-row">
+      <div class="bar-track"><div class="bar-fill ${status}" style="width:${pct != null ? Math.round(pct*100) : 0}%"></div></div>
+      <span class="bar-label">${pct != null ? Math.round(pct*100)+'%' : ''} ${s.value != null ? s.value+' / '+s.total : ''}</span>
+      <span class="eta">${s.eta_seconds != null ? '~'+fmtEta(s.eta_seconds) : ''}</span>
+    </div>` : (s.value != null ? `<div class="count">${s.value} items</div>` : '');
+
+  const typeClass = s.last_message_type ? ` type-${s.last_message_type}` : '';
+  const msgHtml = s.last_message
+    ? `<div class="message${hasTotal ? '' : ' prominent'}${typeClass}">${esc(s.last_message)}${msgTs}</div>`
+    : '';
 
   return `
     <div class="session ${status}">
@@ -66,13 +83,8 @@ function fmt(s) {
         <span class="meta">${esc(s.host)} · pid ${s.pid} · ${updated}</span>
         <span class="badge ${status}">${status}</span>
       </div>
-      ${showBar ? `
-      <div class="bar-row">
-        <div class="bar-track"><div class="bar-fill ${status}" style="width:${barWidth}"></div></div>
-        <span class="bar-label">${pctText}${s.total ? ` / ${s.total}` : ''}</span>
-        <span class="eta">${status === 'done' ? 'Done' : (s.eta_seconds != null ? '~' + fmtEta(s.eta_seconds) : '')}</span>
-      </div>` : ''}
-      ${s.last_message ? `<div class="message">${esc(s.last_message)}${s.message_at ? ` <span class="msg-ts">${new Date(s.message_at*1000).toLocaleTimeString()}</span>` : ''}</div>` : ''}
+      ${barHtml}
+      ${msgHtml}
     </div>`;
 }
 
