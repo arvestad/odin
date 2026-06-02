@@ -1,5 +1,10 @@
 import asyncio
 import json
+import os
+import select
+import signal
+import sys
+import threading
 from datetime import datetime
 
 import aiohttp
@@ -85,17 +90,54 @@ def _render(sessions: list[dict]) -> Table:
     return table
 
 
+def _watch_keys(stop: asyncio.Event, loop: asyncio.AbstractEventLoop) -> None:
+    """Background thread: set stop event when 'q' is pressed."""
+    try:
+        import tty
+        import termios
+        fd = sys.stdin.fileno()
+        if not os.isatty(fd):
+            return
+        old = termios.tcgetattr(fd)
+        try:
+            tty.setcbreak(fd)
+            while not stop.is_set():
+                if select.select([sys.stdin], [], [], 0.1)[0]:
+                    ch = sys.stdin.read(1)
+                    if ch in ("q", "Q"):
+                        loop.call_soon_threadsafe(stop.set)
+                        break
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    except Exception:
+        pass  # not a TTY or platform lacks tty/termios
+
+
 async def watch() -> None:
+    stop = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGINT, stop.set)
+
+    key_thread = threading.Thread(target=_watch_keys, args=(stop, loop), daemon=True)
+    key_thread.start()
+
     url = f"ws://localhost:{HTTP_PORT}/ws"
     sessions: list[dict] = []
 
     with Live(console=console, refresh_per_second=4) as live:
-        while True:
+        console.print(
+            f"Watching Odin server at localhost:{HTTP_PORT} — press [bold]q[/bold] or Ctrl-C to quit",
+            style="dim",
+        )
+        while not stop.is_set():
             try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.ws_connect(url) as ws:
-                        console.print(f"Connected to Odin server at localhost:{HTTP_PORT}", style="dim")
-                        async for msg in ws:
+                async with aiohttp.ClientSession() as http:
+                    async with http.ws_connect(url) as ws:
+                        while not stop.is_set():
+                            try:
+                                msg = await asyncio.wait_for(ws.receive(), timeout=0.5)
+                            except asyncio.TimeoutError:
+                                continue
                             if msg.type == aiohttp.WSMsgType.TEXT:
                                 data = json.loads(msg.data)
                                 sessions = data.get("sessions", [])
@@ -103,6 +145,11 @@ async def watch() -> None:
                             elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                                 break
             except (aiohttp.ClientConnectorError, OSError):
-                live.update(_render(sessions))
-                console.print("Server not available, retrying in 2s…", style="dim")
-                await asyncio.sleep(2)
+                if not stop.is_set():
+                    console.print("Server not available, retrying in 2s…", style="dim")
+                    try:
+                        await asyncio.wait_for(stop.wait(), timeout=2.0)
+                    except asyncio.TimeoutError:
+                        pass
+
+    key_thread.join(timeout=0.5)

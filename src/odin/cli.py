@@ -70,7 +70,10 @@ def cmd_stop(_args) -> None:
 
 def cmd_watch(_args) -> None:
     from odin.viewer import watch
-    asyncio.run(watch())
+    try:
+        asyncio.run(watch())
+    except KeyboardInterrupt:
+        pass
 
 
 def _shell_hello(label: str, total: int | None = None) -> dict:
