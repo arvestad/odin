@@ -70,11 +70,10 @@ class Session:
 
 
 class OdinServer:
-    def __init__(self, retention: float = 30.0, host: str = "localhost"):
+    def __init__(self, retention: float = 30.0):
         self.sessions: dict[str, Session] = {}
         self.ws_clients: set[web.WebSocketResponse] = set()
         self.retention = retention  # seconds; 0 = keep forever
-        self.host = host
 
     async def broadcast(self):
         if not self.ws_clients:
@@ -218,7 +217,7 @@ class OdinServer:
 
         runner = web.AppRunner(app)
         await runner.setup()
-        site = web.TCPSite(runner, self.host, HTTP_PORT)
+        site = web.TCPSite(runner, "localhost", HTTP_PORT)
         await site.start()
 
         # Write pid only after all bindings succeed
@@ -230,11 +229,8 @@ class OdinServer:
             loop.add_signal_handler(sig, shutdown.set)
 
         retention_msg = f"{self.retention}s" if self.retention else "forever"
-        display_host = socket.gethostname() if self.host == "0.0.0.0" else self.host
         print(f"Odin server listening on {SOCKET_PATH}")
-        print(f"Dashboard: http://{display_host}:{HTTP_PORT}/")
-        if self.host == "0.0.0.0":
-            print(f"Accepting connections on all interfaces ({self.host})")
+        print(f"Dashboard: http://localhost:{HTTP_PORT}/")
         print(f"Finished sessions retained for: {retention_msg}")
 
         asyncio.create_task(self.cleanup_loop())
@@ -246,6 +242,6 @@ class OdinServer:
             await runner.cleanup()  # releases port 6271
 
 
-async def run(retention: float = 30.0, host: str = "localhost"):
-    server = OdinServer(retention=retention, host=host)
+async def run(retention: float = 30.0):
+    server = OdinServer(retention=retention)
     await server.start()

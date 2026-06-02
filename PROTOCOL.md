@@ -147,21 +147,17 @@ If `~/.odin` does not exist or the connection is refused, the reporter should fa
 
 ## Remote monitoring
 
-### Current approach: network-accessible server
+### Current approach: SSH tunnel
 
-The Odin server can be made accessible to other machines by binding to all interfaces:
-
-```bash
-odin serve --host 0.0.0.0
-```
-
-Viewers on other machines can then open `http://compute-server:6271` directly. For security on untrusted networks, use an SSH tunnel instead — this requires no code changes and is encrypted:
+Use an SSH tunnel to forward the dashboard port securely — no changes to the server needed:
 
 ```bash
 # on the viewing machine:
 ssh -L 6271:localhost:6271 user@compute-server
 # then open http://localhost:6271
 ```
+
+This works through firewalls, is encrypted, and uses existing SSH authentication.
 
 ### Future: forwarder daemon
 

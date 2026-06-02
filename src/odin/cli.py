@@ -26,7 +26,7 @@ def _send_oneshot(messages: list[dict]) -> None:
                 print(f"[odin:{msg.get('type')}] {msg.get('message', msg.get('value', ''))}", file=sys.stderr)
 
 
-def cmd_serve(args) -> None:  # noqa: C901
+def cmd_serve(args) -> None:
     if PID_PATH.exists():
         pid = int(PID_PATH.read_text().strip())
         try:
@@ -42,7 +42,7 @@ def cmd_serve(args) -> None:  # noqa: C901
             pass  # stale pid file — let the server clean it up and start normally
 
     from odin.server import run
-    asyncio.run(run(retention=args.retention, host=args.host))
+    asyncio.run(run(retention=args.retention))
 
 
 def cmd_stop(_args) -> None:
@@ -133,10 +133,6 @@ def main() -> None:
     p.add_argument("--retention", type=float, default=30.0,
                    metavar="SECONDS",
                    help="How long to keep finished/died sessions (0 = forever, default: 30)")
-    p.add_argument("--host", default="localhost",
-                   metavar="HOST",
-                   help="Interface to bind the dashboard to (default: localhost). "
-                        "Use 0.0.0.0 to accept connections from other machines.")
     sub.add_parser("stop", help="Stop a running Odin server")
     sub.add_parser("watch", help="Terminal viewer")
 
