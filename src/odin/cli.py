@@ -124,7 +124,9 @@ def cmd_done(args) -> None:
 
 
 def main() -> None:
+    from odin import __version__
     parser = argparse.ArgumentParser(prog="odin", description="Odin progress reporting")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("serve", help="Start the Odin server")
