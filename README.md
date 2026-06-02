@@ -32,10 +32,10 @@ for item in track(my_list, label="processing"):
 ## Installation
 
 ```bash
-pip install odin
+pip install odin-monitor
 ```
 
-Requires Python 3.10+.
+Requires Python 3.10+. The package installs as `odin` — use `from odin import ...` in your code.
 
 ---
 
@@ -202,7 +202,7 @@ The wire protocol is documented in [PROTOCOL.md](PROTOCOL.md). It is simple enou
 
 **Python** — install from PyPI:
 ```bash
-pip install odin
+pip install odin-monitor
 ```
 
 **C++** — the library is a single header file. Copy it directly:

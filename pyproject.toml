@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "odin"
+name = "odin-monitor"
 version = "0.1.0"
 description = "Lightweight progress reporting for long-running computations"
 readme = "README.md"
