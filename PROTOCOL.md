@@ -142,3 +142,48 @@ All messages must end with `\n`. No authentication, no handshake beyond `hello`.
 ## Fallback behaviour
 
 If `~/.odin` does not exist or the connection is refused, the reporter should fall back gracefully — for example, by writing progress to stderr or calling a user-supplied logging function. The reporter must not crash or block the calling code simply because no server is running.
+
+---
+
+## Remote monitoring
+
+### Current approach: network-accessible server
+
+The Odin server can be made accessible to other machines by binding to all interfaces:
+
+```bash
+odin serve --host 0.0.0.0
+```
+
+Viewers on other machines can then open `http://compute-server:6271` directly. For security on untrusted networks, use an SSH tunnel instead — this requires no code changes and is encrypted:
+
+```bash
+# on the viewing machine:
+ssh -L 6271:localhost:6271 user@compute-server
+# then open http://localhost:6271
+```
+
+### Future: forwarder daemon
+
+For firewalled environments where the compute machine cannot accept inbound connections, a forwarder daemon (`odin forward`) could relay session state outward to a remote Odin server. The design would be:
+
+**On the compute machine:**
+```bash
+odin serve                         # local server, Unix socket only
+odin forward user@laptop.local     # or: odin forward hostname:port
+```
+
+**On the viewing machine:**
+```bash
+odin serve --accept-forwarded      # listens for forwarder connections
+odin watch
+```
+
+The forwarder would:
+1. Subscribe to the local server's WebSocket (`ws://localhost:6271/ws`)
+2. Open an outbound TCP connection to the remote server's forwarder endpoint
+3. Relay the full session state on connect, then stream incremental updates
+
+The remote server would need a new authenticated inbound endpoint. Sessions forwarded from a remote machine would carry the originating hostname in the `host` field of `hello`, so they are naturally distinguished from local sessions in the viewer.
+
+Authentication between forwarder and remote server (e.g. a shared token) would be needed before this is safe to expose publicly. UDP is not required: since the server stores only the latest state per session, there is nothing to stack up — a brief connection interruption just means the forwarder reconnects and sends the current full state again.

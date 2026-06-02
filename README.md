@@ -181,10 +181,25 @@ for item in track(data, label="job", logger=log):
 ## Server options
 
 ```
-odin serve [--retention SECONDS]
+odin serve [--host HOST] [--retention SECONDS]
 ```
 
 `--retention` controls how long finished or died sessions remain visible before being removed (default: 30 seconds). Use `0` to keep them until the server restarts.
+
+`--host` sets the interface the dashboard binds to (default: `localhost`). To allow viewers on other machines to connect:
+
+```bash
+odin serve --host 0.0.0.0
+# viewers open http://your-hostname:6271
+```
+
+For secure remote access over an untrusted network, use an SSH tunnel instead — no server changes needed:
+
+```bash
+# on the viewing machine:
+ssh -L 6271:localhost:6271 user@compute-server
+# then open http://localhost:6271
+```
 
 ---
 
