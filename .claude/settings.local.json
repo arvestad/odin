@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(odin --help)",
+      "Bash(chmod +x /Users/arve/src/odin/examples/shell_demo.sh)",
+      "Bash(python -m pytest tests/ -q)"
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "odin"
+version = "0.1.0"
+description = "Lightweight progress reporting for long-running computations"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "Lars Arvestad", email = "lars.arvestad@gmail.com" }]
+keywords = ["progress", "monitoring", "logging", "reporting", "dashboard"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Topic :: System :: Monitoring",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX",
+]
+dependencies = [
+    "aiohttp>=3.9",
+    "rich>=13.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/arvestad/odin"
+Repository = "https://github.com/arvestad/odin"
+Issues = "https://github.com/arvestad/odin/issues"
+
+[project.scripts]
+odin = "odin.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/odin"]

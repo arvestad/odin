@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odin</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; padding: 1.5rem; }
+  h1 { font-size: 1.25rem; font-weight: 600; color: #94a3b8; margin-bottom: 1.25rem; letter-spacing: 0.05em; }
+  #status { font-size: 0.75rem; color: #475569; margin-bottom: 1rem; }
+  #sessions { display: flex; flex-direction: column; gap: 0.75rem; }
+  .session {
+    background: #1e2330; border: 1px solid #2d3748; border-radius: 0.5rem;
+    padding: 1rem 1.25rem;
+  }
+  .session.died  { border-left: 3px solid #ef4444; }
+  .session.error { border-left: 3px solid #f97316; }
+  .session.warning { border-left: 3px solid #eab308; }
+  .session.done  { opacity: 0.5; border-left: 3px solid #4ade80; }
+  .session.running { border-left: 3px solid #3b82f6; }
+  .header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; }
+  .label { font-weight: 600; font-size: 1rem; }
+  .meta { font-size: 0.75rem; color: #64748b; }
+  .badge {
+    font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem;
+    border-radius: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .badge.running { background: #1d4ed8; color: #bfdbfe; }
+  .badge.done    { background: #166534; color: #bbf7d0; }
+  .badge.died    { background: #7f1d1d; color: #fecaca; }
+  .badge.warning { background: #713f12; color: #fef08a; }
+  .badge.error   { background: #7c2d12; color: #fed7aa; }
+  .bar-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.4rem; }
+  .bar-track { flex: 1; background: #2d3748; border-radius: 999px; height: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; background: #3b82f6; transition: width 0.3s; }
+  .bar-fill.done { background: #4ade80; }
+  .bar-label { font-size: 0.75rem; color: #94a3b8; white-space: nowrap; }
+  .eta { font-size: 0.75rem; color: #64748b; white-space: nowrap; margin-left: auto; }
+  .message { font-size: 0.8rem; color: #94a3b8; margin-top: 0.4rem; font-style: italic; }
+  .msg-ts { font-style: normal; color: #475569; font-size: 0.7rem; }
+  .empty { color: #475569; text-align: center; padding: 3rem; }
+</style>
+</head>
+<body>
+<h1>ODIN</h1>
+<div id="status">Connecting…</div>
+<div id="sessions"></div>
+
+<script>
+const statusEl = document.getElementById('status');
+const sessionsEl = document.getElementById('sessions');
+
+function fmt(s) {
+  const status = s.status || 'running';
+  const pct = (s.total && s.value != null) ? (s.value / s.total) : null;
+  const pctText = pct != null ? `${Math.round(pct * 100)}%` : (s.value != null ? s.value : '');
+  const updated = s.updated ? new Date(s.updated * 1000).toLocaleTimeString() : '';
+  const barWidth = pct != null ? `${Math.round(pct * 100)}%` : '0%';
+  const showBar = s.total != null || s.value != null;
+
+  return `
+    <div class="session ${status}">
+      <div class="header">
+        <span class="label">${esc(s.label)}</span>
+        <span class="meta">${esc(s.host)} · pid ${s.pid} · ${updated}</span>
+        <span class="badge ${status}">${status}</span>
+      </div>
+      ${showBar ? `
+      <div class="bar-row">
+        <div class="bar-track"><div class="bar-fill ${status}" style="width:${barWidth}"></div></div>
+        <span class="bar-label">${pctText}${s.total ? ` / ${s.total}` : ''}</span>
+        <span class="eta">${status === 'done' ? 'Done' : (s.eta_seconds != null ? '~' + fmtEta(s.eta_seconds) : '')}</span>
+      </div>` : ''}
+      ${s.last_message ? `<div class="message">${esc(s.last_message)}${s.message_at ? ` <span class="msg-ts">${new Date(s.message_at*1000).toLocaleTimeString()}</span>` : ''}</div>` : ''}
+    </div>`;
+}
+
+function fmtEta(s) {
+  s = Math.round(s);
+  if (s < 60) return `${s}s`;
+  if (s < 3600) { const m = Math.floor(s/60), r = s%60; return `${m}m ${String(r).padStart(2,'0')}s`; }
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60); return `${h}h ${String(m).padStart(2,'0')}m`;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function render(sessions) {
+  if (!sessions.length) {
+    sessionsEl.innerHTML = '<div class="empty">No reporters connected.</div>';
+    return;
+  }
+  sessionsEl.innerHTML = sessions.map(fmt).join('');
+}
+
+function connect() {
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => { statusEl.textContent = 'Connected'; };
+  ws.onmessage = e => {
+    const data = JSON.parse(e.data);
+    render(data.sessions || []);
+  };
+  ws.onclose = () => {
+    statusEl.textContent = 'Disconnected — reconnecting…';
+    setTimeout(connect, 2000);
+  };
+  ws.onerror = () => ws.close();
+}
+
+connect();
+</script>
+</body>
+</html>
