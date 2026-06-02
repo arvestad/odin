@@ -19,9 +19,9 @@ done
 
 # --- Messages ---
 
-odin info    "$LABEL" "All steps complete"
-odin warning "$LABEL" "Disk usage above 80%"
-odin error   "$LABEL" "Config file missing — using defaults"
+odin info    "$LABEL" "All steps complete"  && sleep 2
+odin warning "$LABEL" "Disk usage above 80%" && sleep 2
+odin error   "$LABEL" "Config file missing — using defaults" && sleep 2
 odin done    "$LABEL"
 
 # --- Open-ended counting (no total) ---
