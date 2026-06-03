@@ -30,6 +30,7 @@ class Session:
         self.last_message: str | None = None
         self.last_message_type: str | None = None
         self.message_at: float | None = None
+        self.created_at = time.time()
         self.updated = time.time()
         self.completed_at: float | None = None
         self.eta_seconds: float | None = None
@@ -63,6 +64,7 @@ class Session:
             "status": self.status,
             "last_message": self.last_message,
             "last_message_type": self.last_message_type,
+            "created_at": self.created_at,
             "updated": self.updated,
             "message_at": self.message_at,
             "eta_seconds": self.eta_seconds,

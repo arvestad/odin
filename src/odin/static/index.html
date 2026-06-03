@@ -7,8 +7,18 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; padding: 1.5rem; }
-  h1 { font-size: 1.25rem; font-weight: 600; color: #94a3b8; margin-bottom: 1.25rem; letter-spacing: 0.05em; }
-  #status { font-size: 0.75rem; color: #475569; margin-bottom: 1rem; }
+  h1 { font-size: 1.25rem; font-weight: 600; color: #94a3b8; margin-bottom: 0.75rem; letter-spacing: 0.05em; }
+  #status { font-size: 0.75rem; color: #475569; margin-bottom: 0.75rem; }
+  #sort-bar { display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
+  #sort-bar .sort-lbl { font-size: 0.7rem; color: #475569; margin-right: 0.25rem; }
+  .sort-btn {
+    font-size: 0.7rem; font-weight: 500; padding: 0.2rem 0.55rem;
+    border-radius: 0.25rem; cursor: pointer; border: 1px solid #2d3748;
+    background: #1e2330; color: #64748b; user-select: none;
+    transition: background 0.1s;
+  }
+  .sort-btn:hover { background: #252d3d; color: #94a3b8; }
+  .sort-btn.active { background: #2d3748; color: #e2e8f0; border-color: #4a5568; }
   #sessions { display: flex; flex-direction: column; gap: 0.375rem; }
   .session {
     background: #1e2330; border: 1px solid #2d3748; border-radius: 0.5rem;
@@ -51,12 +61,64 @@
 <body>
 <h1>ODIN</h1>
 <div id="status">Connecting…</div>
+<div id="sort-bar"></div>
 <div id="sessions"></div>
 
 <script>
-const statusEl = document.getElementById('status');
+const statusEl  = document.getElementById('status');
 const sessionsEl = document.getElementById('sessions');
+const sortBarEl  = document.getElementById('sort-bar');
 
+// --- Sort state ---
+const SORT_LABELS = {t: 'Started', l: 'Label', p: 'Progress', s: 'Status', m: 'Message'};
+const SORT_NATURAL_DESC = new Set(['p']);
+const STATUS_PRIORITY = {died: 0, failed: 1, error: 2, warning: 3, running: 4, done: 5};
+
+let sortKey  = 't';
+let sortDesc = false;
+let lastSessions = [];
+
+function setSort(key) {
+  if (sortKey === key) {
+    sortDesc = !sortDesc;
+  } else {
+    sortKey  = key;
+    sortDesc = SORT_NATURAL_DESC.has(key);
+  }
+  updateSortBar();
+  render(lastSessions);
+}
+
+function updateSortBar() {
+  const arrow = sortDesc ? '↓' : '↑';
+  sortBarEl.innerHTML =
+    '<span class="sort-lbl">Sort:</span>' +
+    Object.entries(SORT_LABELS).map(([k, label]) => {
+      const active = k === sortKey;
+      return `<button class="sort-btn${active ? ' active' : ''}" onclick="setSort('${k}')">${label}${active ? ' ' + arrow : ''}</button>`;
+    }).join('');
+}
+
+function sortSessions(sessions) {
+  return [...sessions].sort((a, b) => {
+    let va, vb;
+    switch (sortKey) {
+      case 't': va = a.created_at || 0; vb = b.created_at || 0; break;
+      case 'l': va = (a.label||'').toLowerCase(); vb = (b.label||'').toLowerCase(); break;
+      case 'p':
+        va = a.total ? (a.value||0)/a.total : (a.value||0);
+        vb = b.total ? (b.value||0)/b.total : (b.value||0);
+        break;
+      case 's': va = STATUS_PRIORITY[a.status]??4; vb = STATUS_PRIORITY[b.status]??4; break;
+      case 'm': va = (a.last_message||'').toLowerCase(); vb = (b.last_message||'').toLowerCase(); break;
+      default:  va = 0; vb = 0;
+    }
+    const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+    return sortDesc ? -cmp : cmp;
+  });
+}
+
+// --- Rendering ---
 function fmt(s) {
   const status = s.status || 'running';
   const hasTotal = s.total != null;
@@ -100,13 +162,22 @@ function esc(s) {
 }
 
 function render(sessions) {
-  if (!sessions.length) {
+  lastSessions = sessions;
+  const sorted = sortSessions(sessions);
+  if (!sorted.length) {
     sessionsEl.innerHTML = '<div class="empty">No reporters connected.</div>';
     return;
   }
-  sessionsEl.innerHTML = sessions.map(fmt).join('');
+  sessionsEl.innerHTML = sorted.map(fmt).join('');
 }
 
+// --- Keyboard sort (same keys as terminal viewer) ---
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key in SORT_LABELS) setSort(e.key);
+});
+
+// --- WebSocket ---
 function connect() {
   const ws = new WebSocket(`ws://${location.host}/ws`);
   ws.onopen = () => { statusEl.textContent = 'Connected'; };
@@ -121,6 +192,7 @@ function connect() {
   ws.onerror = () => ws.close();
 }
 
+updateSortBar();
 connect();
 </script>
 </body>

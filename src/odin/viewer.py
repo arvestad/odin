@@ -15,6 +15,11 @@ from rich.table import Table
 HTTP_PORT = 6271
 console = Console()
 
+SORT_KEYS  = {"t", "l", "p", "s", "m"}
+SORT_LABEL = {"t": "Started", "l": "Label", "p": "Progress", "s": "Status", "m": "Message"}
+SORT_NATURAL_DESC = {"p"}  # highest progress first by default
+STATUS_PRIORITY = {"died": 0, "failed": 1, "error": 2, "warning": 3, "running": 4, "done": 5}
+
 
 def _fmt_eta(seconds: float) -> str:
     s = int(seconds)
@@ -38,8 +43,35 @@ def _status_style(status: str) -> str:
     }.get(status, "white")
 
 
-def _render(sessions: list[dict]) -> Table:
-    table = Table(show_header=True, header_style="bold", expand=True)
+def _sort_sessions(sessions: list[dict], key: str, desc: bool) -> list[dict]:
+    def sort_key(s: dict):
+        if key == "t":
+            return s.get("created_at") or 0
+        if key == "l":
+            return (s.get("label") or "").lower()
+        if key == "p":
+            value = s.get("value") or 0
+            total = s.get("total")
+            return value / total if total else value
+        if key == "s":
+            return STATUS_PRIORITY.get(s.get("status", "running"), 4)
+        if key == "m":
+            return (s.get("last_message") or "").lower()
+        return 0
+    return sorted(sessions, key=sort_key, reverse=desc)
+
+
+def _render(sessions: list[dict], sort_key: str = "t", sort_desc: bool = False) -> Table:
+    arrow = "↓" if sort_desc else "↑"
+    hints = "  ·  ".join(
+        f"[bold]{k}[/bold] {SORT_LABEL[k]}{' ' + arrow if k == sort_key else ''}"
+        for k in ("t", "l", "p", "s", "m")
+    )
+    table = Table(
+        show_header=True, header_style="bold", expand=True,
+        caption=f" {hints}  ·  [bold]q[/bold] quit",
+        caption_justify="left",
+    )
     table.add_column("Host", style="cyan", no_wrap=True)
     table.add_column("Label", style="bold")
     table.add_column("Progress", min_width=20)
@@ -47,7 +79,7 @@ def _render(sessions: list[dict]) -> Table:
     table.add_column("Status", no_wrap=True)
     table.add_column("Message")
 
-    for s in sessions:
+    for s in _sort_sessions(sessions, sort_key, sort_desc):
         status = s.get("status", "?")
         value = s.get("value")
         total = s.get("total")
@@ -64,7 +96,6 @@ def _render(sessions: list[dict]) -> Table:
             progress = ""
 
         eta = f"~{_fmt_eta(s['eta_seconds'])}" if s.get("eta_seconds") is not None else ""
-
         style = _status_style(status)
 
         last = s.get("last_message") or ""
@@ -90,8 +121,12 @@ def _render(sessions: list[dict]) -> Table:
     return table
 
 
-def _watch_keys(stop: asyncio.Event, loop: asyncio.AbstractEventLoop) -> None:
-    """Background thread: set stop event when 'q' is pressed."""
+def _watch_keys(
+    stop: asyncio.Event,
+    loop: asyncio.AbstractEventLoop,
+    sort_state: dict,
+) -> None:
+    """Background thread: handle q (quit) and t/l/p/s/m (sort) keypresses."""
     try:
         import tty
         import termios
@@ -107,10 +142,17 @@ def _watch_keys(stop: asyncio.Event, loop: asyncio.AbstractEventLoop) -> None:
                     if ch in ("q", "Q"):
                         loop.call_soon_threadsafe(stop.set)
                         break
+                    elif ch in SORT_KEYS:
+                        if sort_state["key"] == ch:
+                            sort_state["desc"] = not sort_state["desc"]
+                        else:
+                            sort_state["key"] = ch
+                            sort_state["desc"] = ch in SORT_NATURAL_DESC
+                        sort_state["changed"] = True
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old)
     except Exception:
-        pass  # not a TTY or platform lacks tty/termios
+        pass
 
 
 async def watch() -> None:
@@ -118,15 +160,23 @@ async def watch() -> None:
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGINT, stop.set)
 
-    key_thread = threading.Thread(target=_watch_keys, args=(stop, loop), daemon=True)
+    sort_state: dict = {"key": "t", "desc": False, "changed": False}
+
+    key_thread = threading.Thread(
+        target=_watch_keys, args=(stop, loop, sort_state), daemon=True
+    )
     key_thread.start()
 
     url = f"ws://localhost:{HTTP_PORT}/ws"
     sessions: list[dict] = []
 
+    def current_render() -> Table:
+        return _render(sessions, sort_state["key"], sort_state["desc"])
+
     with Live(console=console, refresh_per_second=4) as live:
         console.print(
-            f"Watching Odin server at localhost:{HTTP_PORT} — press [bold]q[/bold] or Ctrl-C to quit",
+            f"Watching Odin server at localhost:{HTTP_PORT} — "
+            "press [bold]t/l/p/s/m[/bold] to sort · [bold]q[/bold] or Ctrl-C to quit",
             style="dim",
         )
         while not stop.is_set():
@@ -135,13 +185,17 @@ async def watch() -> None:
                     async with http.ws_connect(url) as ws:
                         while not stop.is_set():
                             try:
-                                msg = await asyncio.wait_for(ws.receive(), timeout=0.5)
+                                msg = await asyncio.wait_for(ws.receive(), timeout=0.2)
                             except asyncio.TimeoutError:
+                                if sort_state["changed"]:
+                                    sort_state["changed"] = False
+                                    live.update(current_render())
                                 continue
                             if msg.type == aiohttp.WSMsgType.TEXT:
                                 data = json.loads(msg.data)
                                 sessions = data.get("sessions", [])
-                                live.update(_render(sessions))
+                                sort_state["changed"] = False
+                                live.update(current_render())
                             elif msg.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                                 break
             except (aiohttp.ClientConnectorError, OSError):
