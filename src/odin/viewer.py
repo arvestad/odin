@@ -5,7 +5,7 @@ import select
 import signal
 import sys
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import aiohttp
 from rich.console import Console
@@ -15,21 +15,26 @@ from rich.table import Table
 HTTP_PORT = 6271
 console = Console()
 
-SORT_KEYS  = {"t", "l", "p", "s", "m"}
-SORT_LABEL = {"t": "Started", "l": "Label", "p": "Progress", "s": "Status", "m": "Message"}
+SORT_KEYS  = {"t", "l", "p", "s", "m", "e"}
+SORT_LABEL = {"t": "Started", "l": "Label", "p": "Progress", "s": "Status", "m": "Message", "e": "ETA"}
 SORT_NATURAL_DESC = {"p"}  # highest progress first by default
 STATUS_PRIORITY = {"died": 0, "failed": 1, "error": 2, "warning": 3, "running": 4, "done": 5}
 
 
-def _fmt_eta(seconds: float) -> str:
-    s = int(seconds)
-    if s < 60:
-        return f"{s}s"
-    if s < 3600:
-        m, r = divmod(s, 60)
-        return f"{m}m {r:02d}s"
-    h, rem = divmod(s, 3600)
-    return f"{h}h {rem // 60:02d}m"
+def _fmt_eta(seconds: float, mode: str = "finish") -> str:
+    if mode == "remaining":
+        s = int(seconds)
+        if s < 60:
+            return f"{s}s"
+        if s < 3600:
+            m, r = divmod(s, 60)
+            return f"{m}m {r:02d}s"
+        h, rem = divmod(s, 3600)
+        return f"{h}h {rem // 60:02d}m"
+    finish = datetime.now() + timedelta(seconds=seconds)
+    if seconds < 86400:
+        return finish.strftime("%H:%M")
+    return finish.strftime("%b %-d")
 
 
 def _status_style(status: str) -> str:
@@ -57,19 +62,23 @@ def _sort_sessions(sessions: list[dict], key: str, desc: bool) -> list[dict]:
             return STATUS_PRIORITY.get(s.get("status", "running"), 4)
         if key == "m":
             return (s.get("last_message") or "").lower()
+        if key == "e":
+            v = s.get("eta_seconds")
+            return float("inf") if v is None else v
         return 0
     return sorted(sessions, key=sort_key, reverse=desc)
 
 
-def _render(sessions: list[dict], sort_key: str = "t", sort_desc: bool = False) -> Table:
+def _render(sessions: list[dict], sort_key: str = "t", sort_desc: bool = False, eta_mode: str = "finish") -> Table:
     arrow = "↓" if sort_desc else "↑"
     hints = "  ·  ".join(
         f"[bold]{k}[/bold] {SORT_LABEL[k]}{' ' + arrow if k == sort_key else ''}"
-        for k in ("t", "l", "p", "s", "m")
+        for k in ("t", "l", "p", "s", "m", "e")
     )
+    eta_hint = "finish time" if eta_mode == "finish" else "remaining"
     table = Table(
         show_header=True, header_style="bold", expand=True,
-        caption=f" {hints}  ·  [bold]q[/bold] quit",
+        caption=f" {hints}  ·  [bold]f[/bold] ETA: {eta_hint}  ·  [bold]q[/bold] quit",
         caption_justify="left",
     )
     table.add_column("Host", style="cyan", no_wrap=True)
@@ -95,7 +104,7 @@ def _render(sessions: list[dict], sort_key: str = "t", sort_desc: bool = False) 
         else:
             progress = ""
 
-        eta = f"~{_fmt_eta(s['eta_seconds'])}" if s.get("eta_seconds") is not None else ""
+        eta = f"~{_fmt_eta(s['eta_seconds'], eta_mode)}" if s.get("eta_seconds") is not None else ""
         style = _status_style(status)
 
         last = s.get("last_message") or ""
@@ -142,6 +151,9 @@ def _watch_keys(
                     if ch in ("q", "Q"):
                         loop.call_soon_threadsafe(stop.set)
                         break
+                    elif ch == "f":
+                        sort_state["eta_mode"] = "remaining" if sort_state["eta_mode"] == "finish" else "finish"
+                        sort_state["changed"] = True
                     elif ch in SORT_KEYS:
                         if sort_state["key"] == ch:
                             sort_state["desc"] = not sort_state["desc"]
@@ -160,7 +172,7 @@ async def watch() -> None:
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGINT, stop.set)
 
-    sort_state: dict = {"key": "t", "desc": False, "changed": False}
+    sort_state: dict = {"key": "t", "desc": False, "changed": False, "eta_mode": "finish"}
 
     key_thread = threading.Thread(
         target=_watch_keys, args=(stop, loop, sort_state), daemon=True
@@ -171,7 +183,7 @@ async def watch() -> None:
     sessions: list[dict] = []
 
     def current_render() -> Table:
-        return _render(sessions, sort_state["key"], sort_state["desc"])
+        return _render(sessions, sort_state["key"], sort_state["desc"], sort_state["eta_mode"])
 
     with Live(console=console, refresh_per_second=4) as live:
         console.print(

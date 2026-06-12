@@ -70,12 +70,13 @@ const sessionsEl = document.getElementById('sessions');
 const sortBarEl  = document.getElementById('sort-bar');
 
 // --- Sort state ---
-const SORT_LABELS = {t: 'Started', l: 'Label', p: 'Progress', s: 'Status', m: 'Message'};
+const SORT_LABELS = {t: 'Started', l: 'Label', p: 'Progress', s: 'Status', m: 'Message', e: 'ETA'};
 const SORT_NATURAL_DESC = new Set(['p']);
 const STATUS_PRIORITY = {died: 0, failed: 1, error: 2, warning: 3, running: 4, done: 5};
 
 let sortKey  = 't';
 let sortDesc = false;
+let etaMode  = 'finish';
 let lastSessions = [];
 
 function setSort(key) {
@@ -89,14 +90,23 @@ function setSort(key) {
   render(lastSessions);
 }
 
+function toggleEtaMode() {
+  etaMode = etaMode === 'finish' ? 'remaining' : 'finish';
+  updateSortBar();
+  render(lastSessions);
+}
+
 function updateSortBar() {
   const arrow = sortDesc ? '↓' : '↑';
+  const etaLabel = etaMode === 'finish' ? 'finish time' : 'remaining';
   sortBarEl.innerHTML =
     '<span class="sort-lbl">Sort:</span>' +
     Object.entries(SORT_LABELS).map(([k, label]) => {
       const active = k === sortKey;
       return `<button class="sort-btn${active ? ' active' : ''}" onclick="setSort('${k}')">${label}${active ? ' ' + arrow : ''}</button>`;
-    }).join('');
+    }).join('') +
+    `<span class="sort-lbl" style="margin-left:0.5rem">ETA:</span>` +
+    `<button class="sort-btn active" onclick="toggleEtaMode()">${etaLabel}</button>`;
 }
 
 function sortSessions(sessions) {
@@ -111,6 +121,7 @@ function sortSessions(sessions) {
         break;
       case 's': va = STATUS_PRIORITY[a.status]??4; vb = STATUS_PRIORITY[b.status]??4; break;
       case 'm': va = (a.last_message||'').toLowerCase(); vb = (b.last_message||'').toLowerCase(); break;
+      case 'e': va = a.eta_seconds ?? Infinity; vb = b.eta_seconds ?? Infinity; break;
       default:  va = 0; vb = 0;
     }
     const cmp = va < vb ? -1 : va > vb ? 1 : 0;
@@ -151,10 +162,15 @@ function fmt(s) {
 }
 
 function fmtEta(s) {
-  s = Math.round(s);
-  if (s < 60) return `${s}s`;
-  if (s < 3600) { const m = Math.floor(s/60), r = s%60; return `${m}m ${String(r).padStart(2,'0')}s`; }
-  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60); return `${h}h ${String(m).padStart(2,'0')}m`;
+  if (etaMode === 'remaining') {
+    s = Math.round(s);
+    if (s < 60) return `${s}s`;
+    if (s < 3600) { const m = Math.floor(s/60), r = s%60; return `${m}m ${String(r).padStart(2,'0')}s`; }
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60); return `${h}h ${String(m).padStart(2,'0')}m`;
+  }
+  const finish = new Date(Date.now() + s * 1000);
+  if (s < 86400) return finish.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+  return finish.toLocaleDateString([], {month: 'short', day: 'numeric'});
 }
 
 function esc(s) {
@@ -175,6 +191,7 @@ function render(sessions) {
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   if (e.key in SORT_LABELS) setSort(e.key);
+  if (e.key === 'f') toggleEtaMode();
 });
 
 // --- WebSocket ---
