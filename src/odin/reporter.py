@@ -14,6 +14,25 @@ T = TypeVar("T")
 
 
 class Reporter:
+    """Send progress updates and messages to an Odin server.
+
+    Connects to the server on construction. If no server is running, output
+    falls back to stderr (or the provided logger/fallback).
+
+    Progress values are 1-based: call ``progress(1)`` after the first unit of
+    work and ``progress(total)`` after the last. Using ``range(n)`` with
+    ``total=n``, the idiomatic pattern is::
+
+        r = Reporter("job", total=n)
+        for i in range(n):
+            do_work(i)
+            r.progress(i + 1)   # 1-based: first call sends 1, last sends n
+        r.done()
+
+    Use :func:`track` if you just want to wrap an iterable — it handles the
+    1-based counting for you.
+    """
+
     def __init__(
         self,
         label: str,
@@ -113,6 +132,9 @@ class Reporter:
         self._queue.put(json.dumps(msg))
 
     def progress(self, value: int) -> None:
+        """Report current progress. *value* is 1-based: pass 1 after the first
+        unit of work and *total* after the last. Negative values are clamped to
+        0 with a warning."""
         if value < 0:
             self.warning(f"progress() called with negative value ({value}), clamping to 0")
             value = 0
@@ -150,6 +172,15 @@ def track(
     fallback: Callable[[str], None] | None = None,
     logger: logging.Logger | None = None,
 ) -> Iterator[T]:
+    """Wrap an iterable and report progress for each item yielded.
+
+    *total* defaults to ``len(iterable)`` when available. Progress is reported
+    1-based after each item is yielded, so the bar reaches 100 % on the last
+    item without any extra bookkeeping.
+
+    Exceptions are reported as errors before re-raising. :meth:`Reporter.done`
+    is called in a ``finally`` block regardless of outcome.
+    """
     if total is None:
         try:
             total = len(iterable)  # type: ignore[arg-type]
