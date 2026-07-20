@@ -4,7 +4,9 @@ _Experimental release!_
 
 Odin provides lightweight progress reporting for long-running computations.
 Monitor running programs — progress bars, warnings, errors — from a browser or terminal, with almost no extra
-code. Start a server, add two lines to your script, and watch it from anywhere (well, not yet, but soon).
+code. Start a server, add two lines to your code, and watch it from anywhere your laptop can connect.
+
+Odin works with Python, C++, and shell scripts.
 
 Here is a minimalistic example for how to add a progressbar to a Python script:
 ```python
@@ -20,22 +22,26 @@ for item in track(my_list, label="processing"):
 
 - **Minimal API** — wrapping an existing loop takes one line
 - **Live browser dashboard** — auto-updating, no page refreshes
-- **Terminal viewer** — `odin watch` for a rich live table in your terminal
+- **Live terminal dashboard** — `odin watch` for a rich live table in your terminal. Good to have when your jobs are on a remote server
 - **Multi-language** — Python and C++ reporter libraries; shell one-liners via the `odin` CLI
 - **Graceful fallback** — if no server is running, output goes to stderr (or your logger); your code keeps working
-- **Process death detection** — reporters that crash or are killed are automatically marked as died
 - **ETA estimation** — time-remaining shown once enough data has accumulated
 - **Integrates with Python logging** — pass a `logger=` argument and Odin uses it as the fallback
+- **Process death detection** — reporters that crash or are killed are automatically marked as died
 
 ---
 
 ## Installation
 
+The `odin` package that provides server, terminal-based dashboard, and module for progress reporting in Python programs
+is typically installed like this (from pypi.org):
 ```bash
 pip install odin-monitor
 ```
 
-Requires Python 3.10+. The package installs as `odin` — use `from odin import ...` in your code.
+The package requires Python 3.10+. The package installs as `odin` — use `from odin import ...` in your code.
+
+For progress reporting in C++ code you download `cpp/odin.hpp` from this repository to your project – this is a header-only dependency and no further installation is required.
 
 ---
 
