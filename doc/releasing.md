@@ -23,21 +23,9 @@ Go to https://github.com/arvestad/odin/settings/environments and create a new en
 
 ## How to release a new version
 
-**1. Bump the version in `pyproject.toml`:**
+The version is derived automatically from the git tag — there is no version number in `pyproject.toml` to update.
 
-```toml
-[project]
-version = "0.5.0"
-```
-
-**2. Commit the version bump:**
-
-```bash
-git add pyproject.toml
-git commit -m "Bump version to 0.5.0"
-```
-
-**3. Push a version tag:**
+**1. Tag the commit and push:**
 
 ```bash
 git tag v0.5.0
@@ -47,7 +35,7 @@ git push origin v0.5.0
 
 The `publish.yml` GitHub Actions workflow triggers on any tag starting with `v`, builds the package, and uploads it to PyPI automatically.
 
-**4. Verify** at https://pypi.org/project/odin-monitor/ that the new version appears (usually within a minute or two).
+**2. Verify** at https://pypi.org/project/odin-monitor/ that the new version appears (usually within a minute or two).
 
 ---
 

@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "odin-monitor"
-version = "0.4.0"
+dynamic = ["version"]
 description = "Lightweight progress reporting for long-running computations"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -36,6 +36,9 @@ Issues = "https://github.com/arvestad/odin/issues"
 
 [project.scripts]
 odin = "odin.cli:main"
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/odin"]
