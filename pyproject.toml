@@ -26,6 +26,9 @@ dependencies = [
     "rich>=13.0",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [project.urls]
 Homepage = "https://github.com/arvestad/odin"
 Repository = "https://github.com/arvestad/odin"
