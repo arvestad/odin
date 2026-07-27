@@ -21,8 +21,8 @@ for item in track(my_list, label="processing"):
 ## Features
 
 - **Minimal API** — wrapping an existing loop takes one line
-- **Live browser dashboard** — auto-updating, no page refreshes
-- **Live terminal dashboard** — `odin watch` for a rich live table in your terminal. Good to have when your jobs are on a remote server
+- **Live browser dashboard** — auto-updating, no page refreshes. See example below!
+- **Live terminal dashboard** — `odin watch` for a rich live table in your terminal. Good to have when your jobs are on a remote server. See example below!
 - **Multi-language** — Python and C++ reporter libraries; shell one-liners via the `odin` CLI
 - **Graceful fallback** — if no server is running, output goes to stderr (or your logger); your code keeps working
 - **ETA estimation** — time-remaining shown once enough data has accumulated
@@ -94,6 +94,7 @@ with Reporter("risky job", total=100) as r:
 ```bash
 odin stop
 ```
+
 
 ---
 
@@ -235,3 +236,16 @@ git submodule add https://github.com/arvestad/odin deps/odin
 ## License
 
 MIT
+---
+
+## Dashboard examples
+
+The following dashboards show concurrent execution of Python scripts in the `examples` folder.
+
+**Browser dashboard** (`http://localhost:6271`):
+
+![Browser dashboard](https://raw.githubusercontent.com/arvestad/odin/main/doc/browser_dashboard.png)
+
+**Terminal dashboard** (`odin watch`):
+
+![Terminal dashboard](https://raw.githubusercontent.com/arvestad/odin/main/doc/terminal_dashboard.png)
