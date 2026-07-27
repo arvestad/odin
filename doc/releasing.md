@@ -33,6 +33,8 @@ git push
 git push origin v0.5.0
 ```
 
+If you set `git config --global push.followTags true`, a plain `git push` will include tags automatically and the second push command is not needed.
+
 The `publish.yml` GitHub Actions workflow triggers on any tag starting with `v`, builds the package, and uploads it to PyPI automatically.
 
 **2. Verify** at https://pypi.org/project/odin-monitor/ that the new version appears (usually within a minute or two).
