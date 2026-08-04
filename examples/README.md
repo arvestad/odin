@@ -31,6 +31,10 @@ Then open `http://localhost:6271` in a browser, or run `odin watch` in a second 
 | `shell_reporting.sh`  | Comprehensive shell examples: progress, messages, open-ended counting, wrapping external commands |
 | `startserver.sh`      | Convenience script to start the Odin server |
 
+## Snakemake example
+
+See `snakemake/README.md` for a minimal workflow demonstrating `snakemake 2>&1 | odin snakemake`.
+
 ## C++ examples
 
 Build all with `make` in `examples/cpp/`. Requires a C++17 compiler and pthreads.

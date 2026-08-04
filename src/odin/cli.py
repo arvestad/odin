@@ -76,6 +76,14 @@ def cmd_watch(_args) -> None:
         pass
 
 
+def cmd_snakemake(args) -> None:
+    from odin.snakemake import run
+    try:
+        run(label=args.label)
+    except KeyboardInterrupt:
+        pass
+
+
 def _shell_hello(label: str, total: int | None = None) -> dict:
     # Use the parent shell's PID so all odin calls from the same script
     # share one session panel.
@@ -136,6 +144,14 @@ def main() -> None:
     sub.add_parser("stop", help="Stop a running Odin server")
     sub.add_parser("watch", help="Terminal viewer")
 
+    p = sub.add_parser(
+        "snakemake",
+        help="Parse Snakemake progress from stdin and report it "
+             "(use: snakemake 2>&1 | odin snakemake)",
+    )
+    p.add_argument("--label", default="snakemake",
+                    help="Reporter label (default: snakemake)")
+
     p = sub.add_parser("progress", help="Report a progress value (shell use)")
     p.add_argument("label")
     p.add_argument("value")
@@ -161,6 +177,7 @@ def main() -> None:
         "serve": cmd_serve,
         "stop": cmd_stop,
         "watch": cmd_watch,
+        "snakemake": cmd_snakemake,
         "progress": cmd_progress,
         "info": cmd_info,
         "warning": cmd_warning,

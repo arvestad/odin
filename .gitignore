@@ -12,3 +12,5 @@ build/
 examples/cpp/simple_loop
 examples/cpp/reporter_demo
 examples/cpp/error_handling
+examples/snakemake/output/
+examples/snakemake/.snakemake/

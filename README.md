@@ -155,6 +155,24 @@ Each `odin` call connects, sends one message, and exits. If no server is running
 
 ---
 
+## Snakemake integration
+
+Pipe a running Snakemake workflow's output through `odin snakemake` to report its
+progress without changing the workflow itself:
+
+```bash
+snakemake 2>&1 | odin snakemake
+```
+
+`odin snakemake` echoes every line straight through to the terminal (so the
+normal Snakemake output is unaffected), while parsing lines like `"15 of 30
+steps (50%) done"` into progress updates and known Snakemake failure markers
+(`Error in rule ...:`, `WorkflowError:`, etc.) into error reports. Use
+`--label` to give it a custom session name, e.g. `odin snakemake --label
+my-pipeline`. See `examples/snakemake/` for a runnable demo workflow.
+
+---
+
 ## Integration with Python logging
 
 Pass a standard `logging.Logger` and Odin uses it as the fallback when no server is running. Users who don't know about Odin get normal log output; users with a server running get the full dashboard.

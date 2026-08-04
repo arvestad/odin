@@ -1,0 +1,28 @@
+# Example workflow for trying out "odin snakemake".
+#
+# Run it with progress reported to Odin (start `odin serve` first):
+#
+#   cd examples/snakemake
+#   snakemake -j1 --forceall 2>&1 | odin snakemake
+#
+# To see the error path, trigger the deliberately failing rule instead:
+#
+#   snakemake -j1 output/boom.txt 2>&1 | odin snakemake
+
+N = 6
+
+rule all:
+    input:
+        [f"output/{i}.txt" for i in range(N)]
+
+rule step:
+    output:
+        "output/{i}.txt"
+    shell:
+        "sleep 1 && echo done > {output}"
+
+rule fail:
+    output:
+        "output/boom.txt"
+    shell:
+        "exit 1"
