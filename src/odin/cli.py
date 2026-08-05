@@ -148,6 +148,7 @@ def main() -> None:
         "snakemake",
         help="Parse Snakemake progress from stdin and report it "
              "(use: snakemake 2>&1 | odin snakemake)",
+        description="Example use: snakemake 2>&1 | odin snakemake"
     )
     p.add_argument("--label", default="snakemake",
                     help="Reporter label (default: snakemake)")
