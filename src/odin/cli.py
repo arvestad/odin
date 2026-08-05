@@ -76,6 +76,27 @@ def cmd_watch(_args) -> None:
         pass
 
 
+def cmd_load(args) -> None:
+    import time
+    from odin.reporter import Reporter
+
+    ncpu = os.cpu_count() or 1
+    label = args.label or f"load@{socket.gethostname()}"
+    r = Reporter(label)
+    try:
+        while True:
+            avg1, avg5, avg15 = os.getloadavg()
+            n1, n5, n15 = avg1 / ncpu, avg5 / ncpu, avg15 / ncpu
+            msg = f"1m: {n1:.2f}  5m: {n5:.2f}  15m: {n15:.2f}"
+            if n1 >= 1.0:
+                r.warning(msg)
+            else:
+                r.info(msg)
+            time.sleep(args.interval)
+    except KeyboardInterrupt:
+        r.done()
+
+
 def cmd_snakemake(args) -> None:
     from odin.snakemake import run
     try:
@@ -144,6 +165,12 @@ def main() -> None:
     sub.add_parser("stop", help="Stop a running Odin server")
     sub.add_parser("watch", help="Terminal viewer")
 
+    p = sub.add_parser("load", help="Report system load average to Odin server (runs until Ctrl-C)")
+    p.add_argument("--interval", type=float, default=60.0, metavar="SECONDS",
+                   help="Polling interval in seconds (default: 60)")
+    p.add_argument("--label", default=None,
+                   help="Session label (default: load@<hostname>)")
+
     p = sub.add_parser(
         "snakemake",
         help="Parse Snakemake progress from stdin and report it "
@@ -178,6 +205,7 @@ def main() -> None:
         "serve": cmd_serve,
         "stop": cmd_stop,
         "watch": cmd_watch,
+        "load": cmd_load,
         "snakemake": cmd_snakemake,
         "progress": cmd_progress,
         "info": cmd_info,
