@@ -165,7 +165,8 @@ def main() -> None:
     sub.add_parser("stop", help="Stop a running Odin server")
     sub.add_parser("watch", help="Terminal viewer")
 
-    p = sub.add_parser("load", help="Report system load average to Odin server (runs until Ctrl-C)")
+    p = sub.add_parser("load", help="Report system load average to Odin server (runs until Ctrl-C)",
+                       description="Load statistics for the host this command is running on.")
     p.add_argument("--interval", type=float, default=60.0, metavar="SECONDS",
                    help="Polling interval in seconds (default: 60)")
     p.add_argument("--label", default=None,
