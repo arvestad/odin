@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 authors = [{ name = "Lars Arvestad", email = "lars.arvestad@gmail.com" }]
 keywords = ["progress", "monitoring", "logging", "reporting", "dashboard"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
     "Topic :: System :: Monitoring",
